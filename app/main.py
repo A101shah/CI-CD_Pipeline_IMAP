@@ -1,28 +1,79 @@
-"""FastAPI service and locally served demonstration interface."""
+"""FastAPI backend for FraudGate 2.0 demo analytics and CI monitoring."""
 from pathlib import Path
-from fastapi import FastAPI
+from typing import Literal
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from app.demo import list_cases, list_transactions, record_evaluation, set_case_status
 from app.models import Evaluation, Transaction
+from app.pipeline import get_pipeline
 from app.risk import RULES, evaluate
 
 app = FastAPI(
-    title="FraudGate API",
-    description="Explainable rule-based scoring of synthetic transactions (educational demo).",
-    version="1.0.0",
+    title="FraudGate 2.0",
+    description="Educational, deterministic transaction risk-screening and CI/CD observability.",
+    version="2.0.0",
 )
 
-@app.get("/", include_in_schema=False)
-def index() -> FileResponse:
-    return FileResponse(Path(__file__).parent / "static" / "index.html")
+
+class CaseUpdate(BaseModel):
+    status: Literal["OPEN", "INVESTIGATING", "RESOLVED"]
+
 
 @app.get("/health", tags=["Operations"])
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "fraudgate"}
 
+
 @app.get("/api/v1/rules", tags=["Risk"])
 def rules() -> list[dict]:
     return RULES
 
+
 @app.post("/api/v1/evaluate", response_model=Evaluation, tags=["Risk"])
 def evaluate_transaction(transaction: Transaction) -> Evaluation:
-    return evaluate(transaction)
+    result = evaluate(transaction)
+    record_evaluation(transaction)
+    return result
+
+
+@app.get("/api/v1/transactions", tags=["Analytics"])
+def transactions(limit: int = Query(default=600, ge=1, le=700)) -> list[dict]:
+    return list_transactions(limit)
+
+
+@app.get("/api/v1/cases", tags=["Investigations"])
+def cases() -> list[dict]:
+    return list_cases()
+
+
+@app.patch("/api/v1/cases/{transaction_id}", tags=["Investigations"])
+def update_case(transaction_id: str, update: CaseUpdate) -> dict:
+    row = set_case_status(transaction_id, update.status)
+    if not row:
+        raise HTTPException(status_code=404, detail="Investigation case not found")
+    return row
+
+
+@app.get("/api/v1/pipeline", tags=["Operations"])
+def pipeline() -> dict:
+    return get_pipeline()
+
+
+_DIST = Path(__file__).parent / "static"
+if _DIST.exists():
+    app.mount("/assets", StaticFiles(directory=_DIST / "assets", check_dir=False), name="assets")
+
+
+@app.get("/", include_in_schema=False)
+def index() -> FileResponse:
+    return FileResponse(_DIST / "index.html")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def spa_fallback(full_path: str) -> FileResponse:
+    # Never turn missing API requests into HTML successes.
+    if full_path.startswith(("api/", "assets/", "health")):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(_DIST / "index.html")
