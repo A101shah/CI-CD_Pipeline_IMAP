@@ -100,6 +100,7 @@ function App() {
   const [payload,setPayload]=useState<TransactionPayload>({...presetData.low});
   const [result,setResult]=useState<Evaluation|null>(null);
   const [evaluating,setEvaluating]=useState(false);
+  const [riskError,setRiskError]=useState("");
   const [refreshing,setRefreshing]=useState(false);
 
   const fetchData=async()=>{
@@ -138,11 +139,15 @@ function App() {
     finally{setCaseWorking(false);}
   };
   const submit=async(e:FormEvent)=>{
-    e.preventDefault();setEvaluating(true);
+    e.preventDefault();setEvaluating(true);setRiskError("");setResult(null);
     try {
       const evaluation=await evaluateTransaction(payload);setResult(evaluation);
       const latest=await getTransactions();setData(latest);setNotice("Synthetic transaction evaluated and added to this session.");
-    } catch(e){setNotice(e instanceof Error?e.message:"Transaction evaluation failed");}
+    } catch(e){
+      const message=e instanceof Error?e.message:"Transaction evaluation failed";
+      setRiskError(message);
+      setNotice("Risk simulation could not complete — see the form for details.");
+    }
     finally{setEvaluating(false);}
   };
   const refreshPipeline=async()=>{
@@ -238,20 +243,20 @@ function App() {
             </div></Frame>
         </>}
         {!loading&&page==="risk-engine"&&<>
-          <PageTitle eyebrow="INTELLIGENCE / RISK ENGINE" title="Risk Decision Lab" description="Test the decision engine with synthetic scenarios and inspect exactly which rules fired." actions={<Tag tone="green" dot>Rules engine active</Tag>}/>
+          <PageTitle eyebrow="INTELLIGENCE / RISK ENGINE" title="Risk Decision Lab" description="Test the decision engine with synthetic scenarios and inspect exactly which rules fired." actions={error?<Tag tone="red">API unavailable</Tag>:<Tag tone="green" dot>Rules engine active</Tag>}/>
           <div className="lab-grid">
             <Frame title="Transaction sandbox" description="No actual financial transactions are processed">
-              <div className="form-pad"><div className="preset-row"><span>QUICK SCENARIOS</span><div>{[["low","Safe purchase"],["review","Needs review"],["block","High risk"]].map(([k,v])=><button key={k} className={"preset "+(JSON.stringify(payload)===JSON.stringify(presetData[k])?"selected":"")} onClick={()=>{setPayload({...presetData[k]});setResult(null);}}>{v}</button>)}</div></div>
+              <div className="form-pad"><div className="preset-row"><span>QUICK SCENARIOS</span><div>{[["low","Safe purchase"],["review","Needs review"],["block","High risk"]].map(([k,v])=><button key={k} className={"preset "+(JSON.stringify(payload)===JSON.stringify(presetData[k])?"selected":"")} onClick={()=>{setPayload({...presetData[k]});setResult(null);setRiskError("");}}>{v}</button>)}</div></div>
               <form onSubmit={submit}><div className="form-grid">
                 <label>Transaction ID<input value={payload.transaction_id} maxLength={64} required onChange={e=>setField("transaction_id",e.target.value)}/></label>
                 <label>Amount (INR)<input type="number" min=".01" step=".01" required value={payload.amount_inr} onChange={e=>setField("amount_inr",Number(e.target.value))}/></label>
                 <label>Transaction country<select value={payload.country} onChange={e=>setField("country",e.target.value)}>{["IN","US","GB","AE","SG","FR"].map(x=><option key={x}>{x}</option>)}</select></label>
                 <label>Home country<select value={payload.home_country} onChange={e=>setField("home_country",e.target.value)}>{["IN","US","GB","AE","SG","FR"].map(x=><option key={x}>{x}</option>)}</select></label>
                 <label>Transactions last hour<input type="number" min="0" max="100000" required value={payload.transactions_last_hour} onChange={e=>setField("transactions_last_hour",Number(e.target.value))}/></label>
-                <label>Distance from home (km)<input type="number" min="0" max="40075" required value={payload.distance_from_home_km} onChange={e=>setField("distance_from_home_km",Number(e.target.value))}/></label>
+                <label>Distance from home (km)<input type="number" min="0" max="40075" step="any" required value={payload.distance_from_home_km} onChange={e=>setField("distance_from_home_km",Number(e.target.value))}/></label>
                 <label>Merchant category<select value={payload.merchant_category} onChange={e=>setField("merchant_category",e.target.value)}>{allCategories.slice(1).map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
                 <label className="checkbox-field"><span>Device verification</span><span className="checkbox-row"><input type="checkbox" checked={payload.device_is_new} onChange={e=>setField("device_is_new",e.target.checked)}/> Unrecognized device</span></label>
-              </div><button className="primary-btn submit-btn" disabled={evaluating} type="submit"><Zap size={17}/>{evaluating?"Evaluating transaction…":"Evaluate risk profile"}<ArrowRight size={17}/></button></form></div>
+              </div><button className="primary-btn submit-btn" disabled={evaluating} type="submit"><Zap size={17}/>{evaluating?"Evaluating transaction…":"Evaluate risk profile"}<ArrowRight size={17}/></button>{riskError&&<div className="risk-form-error" role="alert"><AlertTriangle size={17}/><span>{riskError}</span><button type="button" onClick={()=>setRiskError("")} aria-label="Dismiss error"><X size={15}/></button></div>}</form></div>
             </Frame>
             <Frame title="Decision result" description="Deterministic score · transparent evidence">
               <div className="score-card"><div className={"score-circle "+(result?kind(result.decision):"waiting")} style={{["--score" as string]:(result?.score??0)+"%"}}><div><b>{result?.score??"—"}</b><span>/ 100</span></div></div>

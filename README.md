@@ -140,3 +140,22 @@ For the academic assignment, the GitHub Actions pipeline builds and tests locall
 - Keep the project on one web-service instance to avoid inconsistencies in in-memory state.
 
 Read \`docs/CI_CD_AND_SECRETS.md\` for assignment research concepts. Primary references: https://docs.github.com/en/actions and https://fastapi.tiangolo.com and https://docs.docker.com/build/ .
+
+## Windows local-development troubleshooting
+
+**Risk Decision Lab is blank or clicking Evaluate does nothing?**
+
+1. In one PowerShell terminal, activate the Python environment at the repo root and start the API:
+
+   ```powershell
+   cd D:\\IMAP_CI_CD\\CI-CD_Pipeline_IMAP
+   .\\.venv\\Scripts\\Activate.ps1
+   python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+   ```
+
+2. Verify `http://127.0.0.1:8000/health` returns `{"status":"ok","service":"fraudgate"}`.
+3. In a **second** PowerShell terminal, run `cd frontend` from the repo root and start `npm run dev`. Open `http://localhost:5173`.
+4. The Vite proxy deliberately targets `127.0.0.1:8000` rather than `localhost` to avoid Windows IPv4/IPv6 resolution mismatch.
+5. Open the browser developer tools (F12 → Network), submit a sample transaction and inspect `POST /api/v1/evaluate`. A successful request is HTTP 200. A 422 response means a form input did not pass schema validation; the UI now displays field-specific feedback.
+
+After pulling changes, restart **both** the Python and Vite development servers, then hard-refresh the dashboard.

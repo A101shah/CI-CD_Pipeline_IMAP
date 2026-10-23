@@ -3,7 +3,14 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, headers: { Accept: "application/json", ...init?.headers } });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(typeof payload.detail === "string" ? payload.detail : "Request failed (" + response.status + ")");
+    const detail = payload?.detail;
+    const message = typeof detail === "string" ? detail
+      : Array.isArray(detail) ? detail.map((issue: { loc?: (string | number)[]; msg?: string }) => {
+          const field = issue.loc?.slice(1).join(".") || "request";
+          return field + ": " + (issue.msg || "Invalid value");
+        }).join("; ")
+      : "Request failed (" + response.status + ")";
+    throw new Error(message);
   }
   return response.json() as Promise<T>;
 }
