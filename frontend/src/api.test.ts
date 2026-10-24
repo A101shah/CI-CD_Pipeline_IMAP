@@ -48,6 +48,6 @@ describe("Risk Decision Lab client", () => {
 
   it("shows a meaningful error when the FastAPI server cannot be reached", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
-    await expect(evaluateTransaction(payload)).rejects.toThrow("Failed to fetch");
+    await expect(evaluateTransaction(payload)).rejects.toThrow("FastAPI is unreachable");
   });
 });

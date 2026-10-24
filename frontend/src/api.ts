@@ -1,6 +1,6 @@
 import type { DogBreedsResponse, DogFactsResponse, CaseStatus, Evaluation, PipelineResponse, RiskRule, TransactionPayload, TransactionRow } from "./types";
 import * as staticApi from "./staticApi";
-import { STATIC_PAGES, getCloudBaseUrl, useBrowserDemo } from "./cloudConfig";
+import { getCloudBaseUrl, useBrowserDemo } from "./cloudConfig";
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
 

@@ -7,7 +7,7 @@ vi.stubGlobal("localStorage",{
   setItem:(key:string,value:string)=>{settings.set(key,value);},
   removeItem:(key:string)=>{settings.delete(key);},
 });
-afterEach(()=>{settings.clear();vi.unstubAllGlobals();});
+afterEach(()=>{settings.clear();});
 
 describe("Cloud API connection validation",()=>{
   it("accepts a root HTTPS origin but refuses unsafe or malformed URLs",()=>{
