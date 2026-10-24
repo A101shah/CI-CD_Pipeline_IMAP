@@ -7,6 +7,9 @@ COPY frontend/ .
 RUN npm run build
 
 FROM python:3.12-slim
+LABEL org.opencontainers.image.source="https://github.com/A101shah/CI-CD_Pipeline_IMAP" \
+      org.opencontainers.image.title="FraudGate 2.0" \
+      org.opencontainers.image.description="Educational FinTech fraud risk analytics with Dog API and automated CI/CD"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /code
 RUN useradd --uid 10001 --create-home appuser

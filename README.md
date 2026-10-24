@@ -192,3 +192,25 @@ npm run dev
 Browse http://localhost:5173. To test the actual production subpath build, run `npm run build -- --base=/CI-CD_Pipeline_IMAP/`.
 
 The GitHub Actions `ci.yml` backend/frontend/Docker quality gates remain intact. Publishing the static Pages dashboard is **not** publishing or running the FastAPI/Docker backend. Neither GitHub Pages nor this browser-only simulation processes real payments or saves shared transaction data.
+
+## Docker images: GitHub Container Registry (GHCR)
+
+Every push runs the backend and frontend quality gates. **Only after both pass** is the Docker image built and smoke-tested against `GET /health`. On trusted `main` pushes (and manual main-branch runs), GitHub Actions **publishes that same tested image** to GitHub Container Registry.
+
+The workflow creates two tags:
+- `ghcr.io/a101shah/fraudgate:latest` — points to the newest passing main-branch build.
+- `ghcr.io/a101shah/fraudgate:sha-<first-12-commit-characters>` — stable per-commit tag, making it easy to demonstrate each new successful image.
+
+Visit [GitHub Packages — FraudGate](https://github.com/users/A101shah/packages/container/package/fraudgate) or your [GitHub profile Packages tab](https://github.com/A101shah?tab=packages) after the first successful publication. The package may initially be **private**; change visibility in package settings if you want unauthenticated students or evaluators to pull it.
+
+If the image is public, pull and run it with:
+
+```powershell
+docker pull ghcr.io/a101shah/fraudgate:latest
+docker run --rm -p 8000:8000 ghcr.io/a101shah/fraudgate:latest
+```
+
+Then open `http://localhost:8000`. Private images require a separate `docker login ghcr.io` locally with an appropriately scoped token. **Never paste your personal token into source code or commit it to Git.** The automated workflow instead uses GitHub Actions' built-in `GITHUB_TOKEN` with job-scoped `packages: write` permission; no additional GitHub secret needs to be created.
+
+Safety: Pull requests and pushes to non-main branches run tests and Docker checks but cannot publish packages. Failed tests or a failed container health check also prevent publication. The GitHub Pages frontend is deployed separately and does **not** execute the container.
+

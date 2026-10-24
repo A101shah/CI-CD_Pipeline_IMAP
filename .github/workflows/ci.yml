@@ -37,9 +37,12 @@ jobs:
       - run: npm run build
 
   docker:
-    name: Docker image and live health check
+    name: Docker health check and GHCR publication
     needs: [backend, frontend]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -64,3 +67,40 @@ jobs:
       - name: Clean up container
         if: always()
         run: docker rm -f fraudgate-ci || true
+
+      # Only publish trusted main-branch builds AFTER the smoke test succeeds.
+      # A pull request (including from a fork) only builds and tests; it never publishes.
+      - name: Authenticate to GitHub Container Registry
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish verified Docker image to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/a101shah/fraudgate"
+          VERSION="sha-${GITHUB_SHA:0:12}"
+
+          # Publish exactly the image that the health check exercised.
+          docker tag fraudgate:ci "${IMAGE}:${VERSION}"
+          docker tag fraudgate:ci "${IMAGE}:latest"
+          docker push "${IMAGE}:${VERSION}"
+          docker push "${IMAGE}:latest"
+
+          # Check that GHCR now exposes the published commit-specific manifest.
+          docker buildx imagetools inspect "${IMAGE}:${VERSION}" > /dev/null
+          {
+            echo "### Docker image published successfully"
+            echo ""
+            echo "- **Commit tag:** \`${IMAGE}:${VERSION}\`"
+            echo "- **Floating tag:** \`${IMAGE}:latest\`"
+            echo "- **Source commit:** \`${GITHUB_SHA}\`"
+            echo "- **Registry:** GitHub Container Registry (GHCR)"
+            echo ""
+            echo "The tested container image is stored in GitHub Packages."
+          } >> "${GITHUB_STEP_SUMMARY}"
