@@ -1,4 +1,5 @@
-name: FraudGate 2.0 — Quality Gate and Docker
+name: Pawly - Test, Publish Docker, Deploy Pages
+
 on:
   push:
   pull_request:
@@ -7,22 +8,13 @@ on:
 permissions:
   contents: read
 
-jobs:
-  backend:
-    name: Python tests and coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-dev.txt
-      - run: python -m pip install -r requirements-dev.txt
-      - run: python -m pytest -v --cov=app --cov-report=term-missing --cov-fail-under=90
+concurrency:
+  group: pawly-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
+jobs:
   frontend:
-    name: Frontend tests and production build
+    name: Test and build Pawly
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -31,14 +23,22 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-      - run: npm install --no-audit --no-fund
-      - run: npm run test
-      - run: npm run build
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run deterministic feature tests
+        run: npm test
+      - name: Build production React website
+        run: npm run build
+      - name: Upload Pages artifact for main pushes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: frontend/dist
 
   docker:
-    name: Docker health check and GHCR publication
-    needs: [backend, frontend]
+    name: Build, smoke-test and publish a new image
+    needs: frontend
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,78 +46,90 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
           load: true
-          tags: fraudgate:ci
-      - name: Container health check
+          tags: pawly:ci
+      - name: Verify actual running container
+        shell: bash
         run: |
-          docker run -d --rm --name fraudgate-ci -p 8000:8000 fraudgate:ci
-          for attempt in $(seq 1 25); do
-            if curl --fail --silent http://localhost:8000/health | grep -q '"status":"ok"'; then
-              echo "FraudGate 2.0 Docker smoke test passed"
+          set -euo pipefail
+          docker run -d --rm --name pawly-ci -p 8080:8080 pawly:ci
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/health | grep -qx 'ok' && \
+               curl -fsS http://localhost:8080/ | grep -q 'Pawly'; then
+              echo 'Pawly Docker smoke test passed.'
               exit 0
             fi
             sleep 2
           done
-          docker logs fraudgate-ci
+          docker logs pawly-ci
           exit 1
-      - name: Clean up container
+      - name: Remove smoke-test container
         if: always()
-        run: docker rm -f fraudgate-ci || true
+        run: docker rm -f pawly-ci || true
 
-      # Only publish trusted main-branch builds AFTER the smoke test succeeds.
-      # A pull request (including from a fork) only builds and tests; it never publishes.
-      - name: Authenticate to GitHub Container Registry
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      # Every successful push, on any branch, publishes an immutable commit-specific tag.
+      # Pull requests test/build but never publish an image.
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish verified Docker image to GHCR
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      - name: Publish tested image to GitHub Packages
+        if: github.event_name == 'push'
         shell: bash
-        run: |
-          set -euo pipefail
-          IMAGE="ghcr.io/a101shah/fraudgate"
-          VERSION="sha-${GITHUB_SHA:0:12}"
-
-          # Publish exactly the image that the health check exercised.
-          docker tag fraudgate:ci "${IMAGE}:${VERSION}"
-          docker tag fraudgate:ci "${IMAGE}:latest"
-          docker push "${IMAGE}:${VERSION}"
-          docker push "${IMAGE}:latest"
-
-          # Check that GHCR now exposes the published commit-specific manifest.
-          docker buildx imagetools inspect "${IMAGE}:${VERSION}" > /dev/null
-          {
-            echo "### Docker image published successfully"
-            echo ""
-            echo "- **Commit tag:** \`${IMAGE}:${VERSION}\`"
-            echo "- **Floating tag:** \`${IMAGE}:latest\`"
-            echo "- **Source commit:** \`${GITHUB_SHA}\`"
-            echo "- **Registry:** GitHub Container Registry (GHCR)"
-            echo ""
-            echo "The tested container image is stored in GitHub Packages."
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-      # Optional: after the tested image is published, redeploy a Render image service.
-      # The hook URL contains a secret key; it is never stored in source code or logged.
-      - name: Trigger cloud Docker deployment (optional Render hook)
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        shell: bash
+          REPO_OWNER: ${{ github.repository_owner }}
+          FULL_SHA: ${{ github.sha }}
+          GIT_REF: ${{ github.ref }}
         run: |
           set -euo pipefail
-          if [[ -z "${RENDER_DEPLOY_HOOK_URL}" ]]; then
-            echo "Render hook not configured; Docker image is published and ready to deploy."
-            exit 0
+          IMAGE="ghcr.io/$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')/pawly"
+          SHORT_SHA="${FULL_SHA:0:12}"
+          docker tag pawly:ci "$IMAGE:sha-$SHORT_SHA"
+          docker push "$IMAGE:sha-$SHORT_SHA"
+          if [[ "$GIT_REF" == 'refs/heads/main' ]]; then
+            docker tag pawly:ci "$IMAGE:latest"
+            docker push "$IMAGE:latest"
           fi
-          curl --fail --silent --show-error --max-time 20 --request POST \
-            "${RENDER_DEPLOY_HOOK_URL}" > /dev/null
-          echo "Render deployment requested after successful image publication." >> "${GITHUB_STEP_SUMMARY}"
+          docker buildx imagetools inspect "$IMAGE:sha-$SHORT_SHA" >/dev/null
+          {
+            echo '### Pawly Docker package published'
+            echo ''
+            echo "- **New version:** \`$IMAGE:sha-$SHORT_SHA\`"
+            echo "- **Source commit:** \`$FULL_SHA\`"
+            echo '- **Registry:** GitHub Container Registry'
+            echo "- **Browse packages:** https://github.com/${GITHUB_REPOSITORY_OWNER}?tab=packages"
+            echo ''
+            echo 'The exact container tested above is now available as a versioned package.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  pages:
+    name: Deploy verified app to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [frontend, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy previously tested frontend artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Deployment summary
+        run: |
+          echo '### Pawly website deployed' >> "$GITHUB_STEP_SUMMARY"
+          echo "Live website: ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
