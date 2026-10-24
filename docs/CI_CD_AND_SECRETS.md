@@ -33,3 +33,9 @@ Show three dashboard risk scenarios, a green GitHub Actions run, then make a del
 - https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions
 - https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 - https://docs.docker.com/build/
+
+## Required external Dog API integration
+
+The final project includes a dedicated **Dog API Lab**. The React UI requests `/api/v1/dog/breeds` and `/api/v1/dog/facts` from FastAPI. The backend uses `https://dogapi.dog/api/v2/breeds` and `https://dogapi.dog/api/v2/facts`, normalizes the upstream responses and returns JSON to React. Tests mock the external service, so CI succeeds independently of external network conditions. There is no Dog API credential to store as a GitHub Secret.
+
+Current pipeline uses three jobs: `backend`, `frontend`, then `docker` using `needs: [backend, frontend]`. This updates the earlier simplified two-job description above.

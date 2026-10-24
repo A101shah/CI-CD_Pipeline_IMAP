@@ -7,13 +7,14 @@ import {
   GitBranch, Github, LayoutDashboard, ListFilter, LockKeyhole, Menu,
   Play, Radar, RefreshCw, Search, Server, Shield, ShieldAlert,
   ShieldCheck, Sparkles, TrendingUp, Wallet, X, Zap, Database,
-  AlertTriangle, CheckCircle, Gauge, CircleHelp, Workflow, SlidersHorizontal
+  AlertTriangle, CheckCircle, Gauge, CircleHelp, Workflow, SlidersHorizontal, PawPrint
 } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
 import { getPipeline, getRules, getTransactions, evaluateTransaction, updateCase } from "./api";
+import DogApiLab from "./DogApiLab";
 import {
   categorySeries, dailySeries, decisionColors, decisions, downloadCSV,
   fullDate, money, number, pct, selectRange, shortDate, summarize, topSignals
@@ -28,6 +29,7 @@ const NAV = [
   { name:"Investigations", page:"investigations" as Page, icon:ShieldAlert },
   { name:"Risk engine", page:"risk-engine" as Page, icon:Radar },
   { name:"CI/CD monitor", page:"pipelines" as Page, icon:Workflow },
+  { name:"Dog API Lab", page:"dog-api" as Page, icon:PawPrint },
 ];
 const RANGE:Range[]=["24h","7d","30d"];
 const allCategories=["All categories","groceries","electronics","travel","gift_cards","utilities","other"];
@@ -273,6 +275,7 @@ function App() {
             <div className="rules-grid">{rules.map((r,i)=><div className="rule-card" key={r.code}><div className="rule-number">RULE {String(i+1).padStart(2,"0")}</div><b>{label(r.code)}</b><p>{r.description}</p><div><Tag tone="violet">+{r.points} POINTS</Tag><ShieldCheck size={17}/></div></div>)}</div>
           </Frame>
         </>}
+        {page==="dog-api"&&<DogApiLab/>}
         {!loading&&page==="pipelines"&&<>
           <PageTitle eyebrow="DEVOPS / DELIVERY INTELLIGENCE" title="CI/CD Operations Center" description="Observe the real GitHub Actions pipeline, quality gates, and Docker validation."
             actions={<><button className="outline-btn" onClick={()=>void refreshPipeline()} disabled={loadingPipeline}><RefreshCw size={16} className={loadingPipeline?"spin":""}/> Refresh status</button><a className="primary-btn" href={REPO+"/actions"} target="_blank" rel="noreferrer">Open GitHub Actions <ExternalLink size={15}/></a></>}/>

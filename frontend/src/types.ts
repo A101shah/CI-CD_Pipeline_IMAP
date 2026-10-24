@@ -1,6 +1,6 @@
 export type Decision = "APPROVE" | "REVIEW" | "BLOCK";
 export type CaseStatus = "OPEN" | "INVESTIGATING" | "RESOLVED" | "NONE";
-export type Page = "overview" | "transactions" | "investigations" | "risk-engine" | "pipelines";
+export type Page = "overview" | "transactions" | "investigations" | "risk-engine" | "pipelines" | "dog-api";
 export interface RuleHit { code: string; reason: string; points: number }
 export interface TransactionRow {
   id: string; timestamp: string; merchant: string; amount: number; currency: string;
@@ -20,3 +20,9 @@ export interface WorkflowRun {
   event: string; commit: string; created_at: string; url: string; title: string;
 }
 export interface PipelineResponse { source: "github" | "unavailable"; repository: string; runs: WorkflowRun[]; message: string | null }
+
+export interface DogPhotoCredit { author:string; license:string; source_url:string }
+export interface DogBreed { id:string; name:string; description:string; life_min:number|null; life_max:number|null; hypoallergenic:boolean; image_url:string|null; image_credit:DogPhotoCredit|null }
+export interface DogFact { id:string; text:string }
+export interface DogBreedsResponse { source:string; count:number; breeds:DogBreed[] }
+export interface DogFactsResponse { source:string; facts:DogFact[] }

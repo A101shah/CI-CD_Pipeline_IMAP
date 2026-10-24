@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from app.demo import list_cases, list_transactions, record_evaluation, set_case_status
+from app.dog_api import DogAPIUnavailable, get_breeds, get_facts
 from app.models import Evaluation, Transaction
 from app.pipeline import get_pipeline
 from app.risk import RULES, evaluate
@@ -59,6 +60,25 @@ def update_case(transaction_id: str, update: CaseUpdate) -> dict:
 @app.get("/api/v1/pipeline", tags=["Operations"])
 def pipeline() -> dict:
     return get_pipeline()
+
+
+
+@app.get("/api/v1/dog/breeds", tags=["External API - Dog API"])
+def dog_breeds() -> dict:
+    """Live Dog API v2 breed catalog (cached for five minutes)."""
+    try:
+        return get_breeds()
+    except DogAPIUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/dog/facts", tags=["External API - Dog API"])
+def dog_facts(limit: int = Query(default=3, ge=1, le=5)) -> dict:
+    """Fresh Dog API v2 facts (not cached)."""
+    try:
+        return get_facts(limit=limit)
+    except DogAPIUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 _DIST = Path(__file__).parent / "static"

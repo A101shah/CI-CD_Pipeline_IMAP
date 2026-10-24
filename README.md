@@ -159,3 +159,9 @@ Read \`docs/CI_CD_AND_SECRETS.md\` for assignment research concepts. Primary ref
 5. Open the browser developer tools (F12 → Network), submit a sample transaction and inspect `POST /api/v1/evaluate`. A successful request is HTTP 200. A 422 response means a form input did not pass schema validation; the UI now displays field-specific feedback.
 
 After pulling changes, restart **both** the Python and Vite development servers, then hard-refresh the dashboard.
+
+## Required Dog API integration
+
+The **Dog API Lab** is a separate sidebar view demonstrating integration with the public [Dog API v2](https://dogapi.dog/docs/api-v2). It uses `GET /api/v1/dog/breeds` for the live catalog and `GET /api/v1/dog/facts?limit=3` for uncached facts. FastAPI normalizes the provider's JSON:API responses. Breed data is cached for five minutes. The user can search, filter, inspect profiles and attributed image links, and refresh results. Network errors return HTTP 503 without crashing the FinTech dashboard. This integration never changes fraud risk scoring.
+
+Our additional `tests/test_dog_api.py` uses offline fixtures for valid API data, malformed data, invalid queries and network failures. GitHub Actions therefore tests integration behavior without depending on an external service being live. No GitHub secret is necessary because the Dog API is public and does not require an API token.

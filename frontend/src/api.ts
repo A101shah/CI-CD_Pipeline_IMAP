@@ -1,4 +1,4 @@
-import type { CaseStatus, Evaluation, PipelineResponse, RiskRule, TransactionPayload, TransactionRow } from "./types";
+import type { DogBreedsResponse, DogFactsResponse, CaseStatus, Evaluation, PipelineResponse, RiskRule, TransactionPayload, TransactionRow } from "./types";
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, headers: { Accept: "application/json", ...init?.headers } });
   if (!response.ok) {
@@ -23,3 +23,6 @@ export const updateCase = (id: string, status: Exclude<CaseStatus, "NONE">) =>
   json<TransactionRow>("/api/v1/cases/" + encodeURIComponent(id), {
     method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
   });
+
+export const getDogBreeds = () => json<DogBreedsResponse>("/api/v1/dog/breeds");
+export const getDogFacts = (limit=3) => json<DogFactsResponse>("/api/v1/dog/facts?limit="+Math.max(1,Math.min(5,Math.trunc(limit))));
