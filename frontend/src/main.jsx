@@ -4,17 +4,19 @@ import {
   PawPrint, Compass, Heart, Scale, Sparkles, BookOpen, Search, ArrowUpRight,
   ArrowRight, Check, X, RefreshCw, Menu, MapPin, Clock3, Activity, ShieldCheck,
   Globe2, Leaf, Users, ExternalLink, Zap, Dog, Star, Sun, Plus,
-  SlidersHorizontal, ChevronRight, Github, Info, ArrowLeft
+  SlidersHorizontal, ChevronRight, Github, Info, ArrowLeft, Workflow
 } from 'lucide-react';
 import { getBreeds, getGroups, getFact } from './dogApi.js';
 import { normalizeBreed, rangeLabel, filterBreeds, rankMatches, toggleId, readSavedIds } from './discovery.js';
 import './style.css';
+import PipelineTestPanel from './PipelineTestPanel.jsx';
 
 const NAV = [
   { id: 'discover', title: 'Discover', icon: Compass },
   { id: 'match', title: 'Matchmaker', icon: Sparkles },
   { id: 'saved', title: 'Saved breeds', icon: Heart },
   { id: 'compare', title: 'Compare', icon: Scale },
+  { id: 'pipeline', title: 'CI/CD Test Center', icon: Workflow },
   { id: 'about', title: 'About Pawly', icon: BookOpen }
 ];
 
@@ -218,6 +220,7 @@ function App() {
         </div>
         <div className="topbar-right">
           <div className="search-shell"><Search size={18}/><input aria-label="Search dog breeds" value={query} onFocus={() => setActive('discover')} onChange={(e) => { setQuery(e.target.value); setVisible(9); setActive('discover'); }} placeholder="Search any breed..." /><kbd>⌕</kbd></div>
+          <button className="topbar-pipeline" onClick={() => setActive("pipeline")}><Workflow size={16}/> Test CI/CD</button>
           <span className={'connection-pill ' + (error ? 'connection-down' : '')}><span className="status-light"/>{loading ? 'Connecting...' : error ? 'API unavailable' : 'Live Dog API'}</span>
           <button className="avatar-button" title="Pawly explorer"><PawPrint size={22}/></button>
         </div>
@@ -308,6 +311,7 @@ function App() {
             ].map(([label, left, right]) => <div className="compare-row" key={label}><span>{label}</span><strong>{left}</strong><strong>{right}</strong></div>)}</div><p className="compare-footnote">Values are supplied by Dog API; they describe breeds in general and may not predict an individual dog's needs.</p></div>}
         </section>}
 
+        {active === 'pipeline' && <PipelineTestPanel/>}
         {active === 'about' && <section className="inner-page"><div className="page-intro"><span className="eyebrow"><Info size={16}/> NICE TO MEET YOU</span><h1>Built with curiosity & care<span>.</span></h1><p>Pawly brings dog knowledge together in one friendly place — while showcasing how real-world APIs, quality gates, Docker and continuous deployment come together.</p></div>
           <div className="about-grid"><div className="about-hero"><span className="about-paw"><PawPrint size={39}/></span><h2>Big love for little paws.</h2><p>Browse documented breeds, explore real photos and discover what makes each companion special. No sign-up, no complicated dashboards — just a delightful place to start your search.</p><button className="primary-button" onClick={() => setActive('discover')}>Start exploring <ArrowRight size={16}/></button></div><div className="about-details">
             <div><Globe2 size={23}/><h3>Real Dog API</h3><p>Breed records, images, breed groups and facts come directly from <a href="https://dogapi.dog/docs/api-v2" target="_blank" rel="noopener noreferrer">dogapi.dog v2 <ExternalLink size={13}/></a>.</p></div>

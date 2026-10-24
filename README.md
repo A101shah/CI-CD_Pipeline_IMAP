@@ -123,3 +123,15 @@ The Vite config uses `base: './'`, so built paths work under the repository subp
 React 19 · Vite · Lucide Icons · Dog API v2 · Vitest · Nginx · Docker · GitHub Actions · GitHub Pages · GitHub Container Registry
 
 Built with curiosity and care. 🐾
+
+## On-demand CI/CD test button
+
+The website now includes **CI/CD Test Center** in the sidebar and top navigation.
+
+- Create a **fine-grained personal access token** scoped only to `CI-CD_Pipeline_IMAP`, with `Actions: Read and write` at the official [GitHub token page](https://github.com/settings/personal-access-tokens/new).
+- Paste it into Pawly's masked field. It stays **only in memory**, is sent only to GitHub's official API, and disappears when the page reloads. Never share it with anyone.
+- Press **Run CI/CD test & create image**. The site dispatches `ci.yml`, polls workflow status, and links to the published GHCR package.
+- Every passing on-demand run publishes `ghcr.io/a101shah/pawly:run-<run_id>-<attempt>`. A unique OCI run label creates a distinct digest even if source code is unchanged.
+- Other visitors cannot start builds without GitHub authorization. See [.github/PAT_SETUP.md](.github/PAT_SETUP.md) for setup details.
+
+**Alternative:** If you prefer not to enter a token on the public site, open [GitHub Actions](https://github.com/A101shah/CI-CD_Pipeline_IMAP/actions/workflows/ci.yml) and use **Run workflow**. It now creates a new GHCR image too.

@@ -6,6 +6,8 @@ COPY frontend/ ./
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:stable-alpine
+ARG PAWLY_BUILD_RUN=local
+LABEL org.opencontainers.image.version="$PAWLY_BUILD_RUN"
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /workspace/dist/ /usr/share/nginx/html/
 EXPOSE 8080
