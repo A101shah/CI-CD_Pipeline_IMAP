@@ -4,7 +4,7 @@ import type { TransactionPayload } from "./types";
 const storage = new Map<string,string>();
 vi.stubGlobal("localStorage",{getItem:(k:string)=>storage.get(k)??null,setItem:(k:string,v:string)=>{storage.set(k,v);}});
 const sample:TransactionPayload={transaction_id:"DEMO-001",amount_inr:2400,country:"IN",home_country:"IN",transactions_last_hour:1,device_is_new:false,distance_from_home_km:15,merchant_category:"groceries"};
-afterEach(()=>{storage.clear();vi.unstubAllGlobals();});
+afterEach(()=>{storage.clear();});
 describe("Pages offline fraud simulator",()=>{
  it("implements six matching risk rules and approval boundaries",()=>{
    expect(RISK_RULES).toHaveLength(6);
