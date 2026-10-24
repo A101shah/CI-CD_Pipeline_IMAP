@@ -104,3 +104,20 @@ jobs:
             echo ""
             echo "The tested container image is stored in GitHub Packages."
           } >> "${GITHUB_STEP_SUMMARY}"
+
+      # Optional: after the tested image is published, redeploy a Render image service.
+      # The hook URL contains a secret key; it is never stored in source code or logged.
+      - name: Trigger cloud Docker deployment (optional Render hook)
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${RENDER_DEPLOY_HOOK_URL}" ]]; then
+            echo "Render hook not configured; Docker image is published and ready to deploy."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 20 --request POST \
+            "${RENDER_DEPLOY_HOOK_URL}" > /dev/null
+          echo "Render deployment requested after successful image publication." >> "${GITHUB_STEP_SUMMARY}"

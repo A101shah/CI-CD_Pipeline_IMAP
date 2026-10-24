@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, ImageOff, PawPrint, RefreshCw, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { getDogBreeds, getDogFacts } from "./api";
+import { STATIC_PAGES, isCloudMode } from "./cloudConfig";
 import type { DogBreed, DogFact } from "./types";
 
 function Photo({breed}:{breed:DogBreed}) {
@@ -55,12 +56,12 @@ export default function DogApiLab() {
 
   return <div className="dog-lab">
     <div className="page-title"><div><div className="eyebrow">EXTERNAL SERVICE / ASSIGNMENT API</div>
-      <h1>Dog API Integration Lab</h1><p>Browse live breed profiles, credited images, and fresh facts through our tested FastAPI integration.</p></div>
+      <h1>Dog API Integration Lab</h1><p>{!STATIC_PAGES||isCloudMode()?"Browse live breed profiles, credited images, and fresh facts through our hosted FastAPI backend.":"Browse live breed profiles, credited images, and fresh facts directly from the Dog API in browser-demo mode."}</p></div>
       <a className="outline-btn" href="https://dogapi.dog/docs/api-v2" target="_blank" rel="noreferrer">Official Dog API docs <ExternalLink size={15}/></a>
     </div>
     <div className="dog-banner"><div className="dog-banner-icon"><PawPrint size={32}/></div>
       <div className="dog-banner-text"><div className="eyebrow">THIRD-PARTY API INTEGRATION</div><h2>Two APIs. One reliable platform.</h2>
-        <p>This independent module demonstrates consuming a live external API, transforming JSON:API responses, handling outages, and testing integrations without depending on the external service during CI.</p>
+        <p>{!STATIC_PAGES||isCloudMode()?"Live Dog API v2 data flows through the deployed Python/Docker service, which normalizes JSON:API responses and handles upstream outages.":"Browser-demo mode talks to Dog API v2 directly. Connect a cloud backend above to route these requests through Docker/FastAPI."}</p>
         <div className="dog-meta"><span><CheckCircle2 size={14}/> Dog API v2</span><span><ShieldCheck size={14}/> No API key required</span><span><RefreshCw size={14}/> 5-minute breed cache</span></div>
       </div>
       <div className={"dog-health "+(errorBreeds?"dog-offline":"")}><span className="live-pulse"/>{status}{!loadingBreeds&&!errorBreeds&&elapsed!==null&&<small>{elapsed} ms</small>}</div>

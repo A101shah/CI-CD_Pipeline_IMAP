@@ -35,6 +35,8 @@ jobs:
       - name: Build GitHub Pages static release
         env:
           VITE_STATIC_MODE: "true"
+          # Optional public URL for automatic cloud connection; can also be entered in the UI.
+          VITE_CLOUD_API_URL: ${{ vars.FRAUDGATE_API_URL }}
         run: npm run build -- --base=/CI-CD_Pipeline_IMAP/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

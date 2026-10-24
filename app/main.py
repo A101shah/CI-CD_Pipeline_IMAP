@@ -1,7 +1,9 @@
 """FastAPI backend for FraudGate 2.0 demo analytics and CI monitoring."""
 from pathlib import Path
 from typing import Literal
+import os
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -15,6 +17,27 @@ app = FastAPI(
     title="FraudGate 2.0",
     description="Educational, deterministic transaction risk-screening and CI/CD observability.",
     version="2.0.0",
+)
+
+
+# GitHub Pages is hosted on a different origin from the Docker-backed API.
+# Explicit origins only: no wildcard, cookies, or credential forwarding.
+DEFAULT_CORS_ORIGINS = (
+    "https://a101shah.github.io",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+)
+extra_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("FRAUDGATE_CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(dict.fromkeys([*DEFAULT_CORS_ORIGINS, *extra_origins])),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["Accept", "Content-Type"],
 )
 
 

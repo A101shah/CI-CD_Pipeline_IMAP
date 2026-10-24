@@ -13,7 +13,9 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
-import { STATIC_PAGES, getPipeline, getRules, getTransactions, evaluateTransaction, updateCase } from "./api";
+import { getPipeline, getRules, getTransactions, evaluateTransaction, updateCase } from "./api";
+import { STATIC_PAGES, getCloudBaseUrl, isCloudMode } from "./cloudConfig";
+import CloudBackendPanel from "./CloudBackendPanel";
 import DogApiLab from "./DogApiLab";
 import {
   categorySeries, dailySeries, decisionColors, decisions, downloadCSV,
@@ -136,7 +138,7 @@ function App() {
   const doCase=async(status:"OPEN"|"INVESTIGATING"|"RESOLVED")=>{
     if(!selected)return;
     setCaseWorking(true);
-    try {const updated=await updateCase(selected.id,status);setData(old=>old.map(r=>r.id===updated.id?updated:r));setSelected(updated);setNotice(STATIC_PAGES?"Case status saved locally in this browser.":"Case status updated for this server session.");}
+    try {const updated=await updateCase(selected.id,status);setData(old=>old.map(r=>r.id===updated.id?updated:r));setSelected(updated);setNotice(STATIC_PAGES&&!isCloudMode()?"Case status saved locally in this browser.":"Case status updated for this server session.");}
     catch(e){setNotice(e instanceof Error?e.message:"Unable to update case");}
     finally{setCaseWorking(false);}
   };
@@ -144,7 +146,7 @@ function App() {
     e.preventDefault();setEvaluating(true);setRiskError("");setResult(null);
     try {
       const evaluation=await evaluateTransaction(payload);setResult(evaluation);
-      const latest=await getTransactions();setData(latest);setNotice(STATIC_PAGES?"Simulated transaction saved locally in this browser.":"Synthetic transaction evaluated and added to this session.");
+      const latest=await getTransactions();setData(latest);setNotice(STATIC_PAGES&&!isCloudMode()?"Simulated transaction saved locally in this browser.":"Synthetic transaction evaluated and added to the backend session.");
     } catch(e){
       const message=e instanceof Error?e.message:"Transaction evaluation failed";
       setRiskError(message);
@@ -169,7 +171,7 @@ function App() {
       <nav>{NAV.map(n=>{const Icon=n.icon;return <button key={n.page} className={"nav-link "+(page===n.page?"nav-active":"")} onClick={()=>go(n.page)}><Icon size={19} strokeWidth={1.9}/><span>{n.name}</span>{n.page==="investigations"&&openCases>0&&<em>{openCases}</em>}</button>;})}</nav>
       <div className="nav-caption nav-caption-secondary">QUICK ACCESS</div>
       <a className="nav-link sidebar-anchor" href={REPO} target="_blank" rel="noreferrer"><Github size={19}/> GitHub repository <ExternalLink size={13}/></a>
-      <a className="nav-link sidebar-anchor" href={STATIC_PAGES?REPO+"/blob/main/README.md":"/docs"} target="_blank" rel="noreferrer"><Code2 size={19}/> {STATIC_PAGES?"Project documentation":"API documentation"} <ExternalLink size={13}/></a>
+      <a className="nav-link sidebar-anchor" href={isCloudMode()?getCloudBaseUrl()+"/docs":STATIC_PAGES?REPO+"/blob/main/README.md":"/docs"} target="_blank" rel="noreferrer"><Code2 size={19}/> {isCloudMode()||!STATIC_PAGES?"API documentation":"Project documentation"} <ExternalLink size={13}/></a>
       <div className="sidebar-bottom"><div className="help-card"><div className="help-icon"><Sparkles size={19}/></div><b>Built to demonstrate trust.</b><p>Explainable fraud scoring meets automated delivery quality gates.</p><button onClick={()=>go("pipelines")}>Explore pipeline <ArrowRight size={15}/></button></div>
         <div className="profile"><div className="profile-avatar">FG</div><div><strong>FraudGate Demo</strong><small>Educational environment</small></div><Tag tone="green" dot>Active</Tag></div>
       </div>
@@ -177,10 +179,10 @@ function App() {
     {mobileOpen&&<button className="sidebar-overlay" aria-label="Close navigation" onClick={()=>setMobileOpen(false)}/>}
     <div className="app-main">
       <header className="topbar"><div className="topbar-left"><button className="icon-btn menu-toggle" aria-label="Open menu" onClick={()=>setMobileOpen(true)}><Menu size={22}/></button><div className="breadcrumb"><span>Workspace</span><ChevronRight size={15}/><b>{NAV.find(n=>n.page===page)?.name}</b></div></div>
-        <div className="topbar-right"><span className="topbar-divider"></span><Tag tone={STATIC_PAGES?"violet":"green"} dot>{STATIC_PAGES?"Pages demo":"Demo system"}</Tag><button className="top-icon" aria-label="Refresh data" title="Refresh data" onClick={()=>void refresh()} disabled={refreshing}><RefreshCw size={17} className={refreshing?"spin":""}/></button><div className="top-avatar">FG</div></div>
+        <div className="topbar-right"><span className="topbar-divider"></span><Tag tone={STATIC_PAGES&&!isCloudMode()?"violet":"green"} dot>{STATIC_PAGES?(isCloudMode()?"Cloud API":"Pages demo"):"Demo system"}</Tag><button className="top-icon" aria-label="Refresh data" title="Refresh data" onClick={()=>void refresh()} disabled={refreshing}><RefreshCw size={17} className={refreshing?"spin":""}/></button><div className="top-avatar">FG</div></div>
       </header>
       <div className="content">
-        {STATIC_PAGES&&<div className="pages-notice"><ShieldCheck size={17}/><span><strong>GitHub Pages demo:</strong> Risk scoring runs in your browser, simulated case updates are stored on this device, and public Dog API and GitHub Actions data are fetched live.</span></div>}
+        {STATIC_PAGES&&<CloudBackendPanel/>}
         <div className="data-ribbon"><span className="ribbon-icon"><Database size={14}/></span><strong>SIMULATED ENVIRONMENT</strong><span>All transactions are synthetic. Case updates and new evaluations are stored in this server process only.</span><CircleHelp size={15}/></div>
         {notice&&<div className="notice"><CheckCircle2 size={16}/>{notice}<button onClick={()=>setNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
         {error&&<div className="error-banner"><AlertTriangle size={18}/>{error}<button onClick={()=>void refresh()}>Retry</button></div>}
@@ -292,7 +294,7 @@ function App() {
             </a>)}{pipeline.runs.length===0&&<Empty title="No runs returned"/>}</div>}
           </Frame>
         </>}
-        <footer><span>© FraudGate 2.0 · Risk Intelligence Console</span><span>{STATIC_PAGES?"Browser-powered GitHub Pages demo":"Academic demonstration"} · No real payment processing</span></footer>
+        <footer><span>© FraudGate 2.0 · Risk Intelligence Console</span><span>{STATIC_PAGES?(isCloudMode()?"GitHub Pages + Cloud FastAPI":"Browser-powered GitHub Pages demo"):"Academic demonstration"} · No real payment processing</span></footer>
       </div>
     </div>
     {selected&&<div className="drawer-backdrop" role="presentation" onClick={()=>setSelected(null)}>
@@ -302,7 +304,7 @@ function App() {
         <div className="drawer-score"><div><span>COMPOSITE RISK SCORE</span><b>{selected.risk_score}<small>/100</small></b></div><RiskMeter value={selected.risk_score}/></div>
         <div className="drawer-section"><h3>Transaction metadata</h3>{[["Timestamp",fullDate(selected.timestamp)],["Merchant category",label(selected.category)],["Country",selected.country],["Device",selected.device_is_new?"Unrecognized":"Known"],["Transactions / hour",String(selected.transactions_last_hour)],["Distance from home",number(selected.distance_from_home_km)+" km"],["Data source",label(selected.source)]].map(([k,v])=><div className="data-pair" key={k}><span>{k}</span><b>{v}</b></div>)}</div>
         <div className="drawer-section"><h3>Triggered risk indicators</h3>{selected.reasons.length?selected.reasons.map(r=><div className="drawer-rule" key={r.code}><div><b>{label(r.code)}</b><small>{r.reason}</small></div><strong>+{r.points}</strong></div>):<div className="success-state"><CheckCircle2 size={18}/> No indicators triggered</div>}</div>
-        {selected.decision!=="APPROVE"&&<div className="drawer-section"><h3>Investigation status</h3><p className="drawer-help">{STATIC_PAGES?"Changes stay in this browser on this device.":"Changes persist only during this server process."}</p><div className="case-buttons">{(["OPEN","INVESTIGATING","RESOLVED"] as const).map(s=><button key={s} disabled={caseWorking} className={selected.case_status===s?"selected":""} onClick={()=>void doCase(s)}>{label(s)}</button>)}</div></div>}
+        {selected.decision!=="APPROVE"&&<div className="drawer-section"><h3>Investigation status</h3><p className="drawer-help">{STATIC_PAGES&&!isCloudMode()?"Changes stay in this browser on this device.":"Changes persist only during this server process."}</p><div className="case-buttons">{(["OPEN","INVESTIGATING","RESOLVED"] as const).map(s=><button key={s} disabled={caseWorking} className={selected.case_status===s?"selected":""} onClick={()=>void doCase(s)}>{label(s)}</button>)}</div></div>}
         </div>
         <div className="drawer-footer"><button className="outline-btn" onClick={()=>setSelected(null)}>Close assessment</button></div>
       </aside>

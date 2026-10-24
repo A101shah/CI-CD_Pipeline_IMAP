@@ -214,3 +214,54 @@ Then open `http://localhost:8000`. Private images require a separate `docker log
 
 Safety: Pull requests and pushes to non-main branches run tests and Docker checks but cannot publish packages. Failed tests or a failed container health check also prevent publication. The GitHub Pages frontend is deployed separately and does **not** execute the container.
 
+
+
+## GitHub Pages + real cloud-hosted Docker/FastAPI + Dog API
+
+This repository supports **a true frontend/backend cloud split** while preserving the local Docker and static demo options:
+
+\`\`\`text
+GitHub Actions -> Test (Python + React) -> Smoke-test Docker -> Publish GHCR
+                                                              |
+                                                    Optional Render deploy hook
+                                                              |
+                                   Render web service -> GHCR Docker image
+                                          |                 |
+                                       FastAPI -> real Dog API v2 (breeds + facts)
+                                          ^
+                           HTTPS/CORS REST calls
+                                          |
+                              GitHub Pages React app
+\`\`\`
+
+**The cloud service has to be created once; publishing to GHCR alone does not start Render.**
+
+### 1. Deploy the prebuilt Docker image on Render
+
+1. Open https://dashboard.render.com/ and create a new **Web Service** (or use the repository's \`render.yaml\` Blueprint).
+2. Choose **Existing Image / Container Registry**, not a static site. The complete image reference is **\`ghcr.io/a101shah/fraudgate:latest\`**. The GHCR package must be public for anonymous pulls; private packages require a Render registry credential.
+3. Choose the available plan (free if eligible), confirm the URL and health path **\`/health\`**, and deploy.
+4. Use the Render-generated HTTPS service URL as the API root. Open \`https://<actual-service-name>.onrender.com/health\` to check it returns \`{"status":"ok","service":"fraudgate"}\`.
+5. Test the required Dog API integration directly: \`/api/v1/dog/breeds\` and \`/api/v1/dog/facts?limit=3\`. FastAPI proxies these to \`dogapi.dog/api/v2\`; no Dog API key is required.
+
+Render assigns the live URL; do not assume the service will be named \`fraudgate-api\` until the service is actually created.
+
+### 2. Connect the GitHub Pages website to Render
+
+Open **https://a101shah.github.io/CI-CD_Pipeline_IMAP/**. At the top of the dashboard, use the **Connect cloud API** panel, paste your actual Render HTTPS root URL and click **Verify & connect**. It checks \`/health\` and stores the URL locally in your browser. After success, React will call the *real backend* for transactions, risk decisions, investigations, pipeline information **and the Dog API v2 endpoints**.
+
+While no cloud URL is connected, the GitHub Pages edition stays usable as the browser-only simulation; the panel labels that mode clearly. You can switch back at any time. Cloud demo transactions and investigations are in memory on the running server; they are **not stored in a database and not isolated by visitor**. Never submit real payment/card/customer data.
+
+For a default cloud URL for **all visitors**, add a GitHub repository **Actions variable** (not a secret) named \`FRAUDGATE_API_URL\` with the actual public HTTPS Render origin. This is used at build time via \`VITE_CLOUD_API_URL\` in \`.github/workflows/pages.yml\`. Rerun the Pages workflow after creating/changing the variable. Individual visitors can still override the default through the panel.
+
+### 3. Optional: automatically refresh the Render Docker service on new successful pushes
+
+Image-backed Render services do **not** redeploy automatically when their upstream \`:latest\` tag changes. In the Render service Settings, copy the private **Deploy Hook URL** into GitHub repository **Settings → Secrets and variables → Actions → New repository secret**, named \`RENDER_DEPLOY_HOOK_URL\`.
+
+After Python tests, frontend tests, image health check, and GHCR publication succeed on \`main\`, the CI workflow sends a POST to that hook (when configured). The hook must **never be committed, placed in a Vite variable, or shown publicly**. Without this secret, the pipeline still publishes the image, and the Render service can be updated with **Manual Deploy → Deploy latest reference**.
+
+### 4. CORS and runtime configuration
+
+FastAPI explicitly permits browser requests from \`https://a101shah.github.io\` and two local Vite development origins. Extra origins, if required, can be set using a comma-separated \`FRAUDGATE_CORS_ORIGINS\` environment variable on the cloud service. The Docker image uses the Render \`PORT\` environment variable and defaults to 8000 for local Docker/Desktop.
+
+**Security scope:** This is an academic demonstration with unauthenticated API routes, transparent rules, synthetic financial records and in-memory state. It is **not suitable for public production financial transactions or real account data**. The Dog API Lab is an independent live external service integration.

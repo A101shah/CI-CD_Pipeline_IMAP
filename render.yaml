@@ -1,8 +1,12 @@
+# Optional Render Blueprint: deploy the exact prebuilt Docker image verified by CI.
+# GHCR package must be public, or a GHCR registry credential must be added to Render.
 services:
   - type: web
-    name: fraudgate-analytics
-    runtime: docker
+    name: fraudgate-api
+    runtime: image
     plan: free
+    image:
+      url: ghcr.io/a101shah/fraudgate:latest
     healthCheckPath: /health
-    autoDeployTrigger: checksPass
-    envVars: []
+    # Image-backed services are redeployed via the Render Dashboard or a deploy hook.
+    autoDeployTrigger: off

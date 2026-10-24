@@ -43,3 +43,10 @@ Current pipeline uses three jobs: `backend`, `frontend`, then `docker` using `ne
 ## Published image tracking
 
 Successful main-branch builds produce `ghcr.io/a101shah/fraudgate:latest` and `ghcr.io/a101shah/fraudgate:sha-<12-char-commit>`. Check the package versions under the GitHub profile's **Packages** section, or open the publishing step in the GitHub Actions workflow to view the manifest verification and image tags. Note that the default visibility may be private until changed by the package owner.
+
+
+## Public GitHub Pages to cloud FastAPI, with required Dog API
+
+The final deployment can split hosting: GitHub Pages serves the React UI and a Render web service runs the Docker image from GHCR. A public Render HTTPS URL is entered in the Pages UI or supplied using the GitHub Actions variable \`FRAUDGATE_API_URL\` for site-wide default builds. Only the URL is public; it must never contain a credential. The frontend then uses the FastAPI REST endpoints for risk evaluation, cases, transactions and **Dog API v2** breed/fact requests. FastAPI applies explicit CORS rules for the GitHub Pages origin.
+
+Optional automation: the \`RENDER_DEPLOY_HOOK_URL\` GitHub Actions secret triggers a Render deploy only after the Docker image passes its health check and is published. Unlike the public API URL, the deploy hook **is secret** and must never be embedded into React/Pages or repository files. Image-backed Render services do not automatically redeploy when \`:latest\` changes without a deploy trigger.
