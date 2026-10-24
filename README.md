@@ -165,3 +165,30 @@ After pulling changes, restart **both** the Python and Vite development servers,
 The **Dog API Lab** is a separate sidebar view demonstrating integration with the public [Dog API v2](https://dogapi.dog/docs/api-v2). It uses `GET /api/v1/dog/breeds` for the live catalog and `GET /api/v1/dog/facts?limit=3` for uncached facts. FastAPI normalizes the provider's JSON:API responses. Breed data is cached for five minutes. The user can search, filter, inspect profiles and attributed image links, and refresh results. Network errors return HTTP 503 without crashing the FinTech dashboard. This integration never changes fraud risk scoring.
 
 Our additional `tests/test_dog_api.py` uses offline fixtures for valid API data, malformed data, invalid queries and network failures. GitHub Actions therefore tests integration behavior without depending on an external service being live. No GitHub secret is necessary because the Dog API is public and does not require an API token.
+
+## GitHub Pages: full static dashboard (no Python runtime required)
+
+Production Pages URL (after enabling Pages in Settings):
+**https://a101shah.github.io/CI-CD_Pipeline_IMAP/**.
+
+The repository supports two explicitly different modes:
+
+- **Full-stack development and Docker:** React uses the FastAPI backend, with real Python server-side validation, session-only synthetic transactions, and the Docker CI smoke test.
+- **GitHub Pages static deployment:** the React app works without any server. `VITE_STATIC_MODE=true` selects `frontend/src/staticApi.ts`, which reproduces the six rule-based risk scores locally. The browser starts with 480 seeded synthetic records, saves simulated transactions and case statuses in `localStorage` on that browser, and fetches GitHub Actions status and the Dog API v2 directly using public CORS-enabled endpoints. This is a browser-only educational simulation: there is no shared database or backend service.
+
+Every push to `main` triggers `.github/workflows/pages.yml`. It tests React, builds the Vite assets with base path `/CI-CD_Pipeline_IMAP/`, uploads `frontend/dist` and deploys with the official GitHub Pages actions.
+
+**One-time repository setting:** open GitHub → repository Settings → Pages → Build and deployment → Source: **GitHub Actions**. Only repository administrators can change this setting. If GitHub Pages was not enabled yet, set it before expecting the website to load.
+
+### Verify locally without FastAPI
+
+```powershell
+cd frontend
+npm install
+$env:VITE_STATIC_MODE="true"
+npm run dev
+```
+
+Browse http://localhost:5173. To test the actual production subpath build, run `npm run build -- --base=/CI-CD_Pipeline_IMAP/`.
+
+The GitHub Actions `ci.yml` backend/frontend/Docker quality gates remain intact. Publishing the static Pages dashboard is **not** publishing or running the FastAPI/Docker backend. Neither GitHub Pages nor this browser-only simulation processes real payments or saves shared transaction data.
